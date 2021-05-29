@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kf-passwordprovidersvc-deployment
+spec:
+  selector:
+    matchLabels:
+      app: passwordprovidersvc
+  template:
+    metadata:
+      name: passwordprovidersvc
+      labels:
+        app: passwordprovidersvc
+    spec:
+      containers:
+      - image: ${CONTAINER_REGISTRY_SERVER}/${PASSWORDPROVIDERSVC_IMAGE}
+        name: passwordprovidersvc-container
+        imagePullPolicy: Always
+        env:
+        - name: CONSUMER_GROUP_ID
+          value: PasswordProviderSvcGroup

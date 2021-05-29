@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kf-apisvc-deployment
+spec:
+  selector:
+    matchLabels:
+      app: apisvc
+  template:
+    metadata:
+      name: apisvc
+      labels:
+        app: apisvc
+    spec:
+      containers:
+      - image: ${CONTAINER_REGISTRY_SERVER}/${APISVC_IMAGE}
+        name: apisvc-container
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        env:
+        - name: CONSUMER_GROUP_ID
+          value: ApiSvcGroup

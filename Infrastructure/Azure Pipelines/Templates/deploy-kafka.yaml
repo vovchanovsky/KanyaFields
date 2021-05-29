@@ -1,0 +1,125 @@
+trigger: none
+
+parameters:
+- name: Environment
+  type: string
+  default: dev
+  values:
+  - dev
+  - prod
+- name: K8sSvcConnection
+  type: string
+  default: K8s-dev
+  values:
+  - "K8s-dev"
+  - "K8s-prod"
+
+
+stages:
+- stage: Deploy_Kafka
+  displayName: Deploy Kafka
+  pool: ChronosPool
+  jobs:
+  - job: DeployKafka
+    displayName: Deploy Kafka
+    variables:
+      ${{ if eq(parameters.Environment, 'dev')}}:
+        kafkaValueFile: ./Infrastructure/Kubernetes/Kafka/kafka-dev.yaml
+        schemaRegistryValueFile: ./Infrastructure/Kubernetes/Kafka/schema-registry-dev.yaml
+        kowlValueFile: ./Infrastructure/Kubernetes/Kafka/kowl-dev.yaml
+        restProxyValueFile: ./Infrastructure/Kubernetes/Kafka/kafka-rest-dev.yaml
+      ${{ if eq(parameters.Environment, 'prod')}}:
+        kafkaValueFile: 'TODO'
+        schemaRegistryValueFile: 'TODO'
+        kowlValueFile: 'TODO'
+        restProxyValueFile: 'TODO'
+
+    steps:
+    - task: HelmInstaller@0
+      inputs:
+        helmVersion: '3.5.4'
+        installKubectl: true
+
+    - task: Bash@3
+      displayName: Update Helm repos
+      inputs:
+        targetType: 'inline'
+        script: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add incubator https://charts.helm.sh/incubator
+          helm repo add stable https://charts.helm.sh/stable
+          helm repo add confluentinc https://confluentinc.github.io/cp-helm-charts
+          helm repo add kafka-topics-ui https://dhiatn.github.io/helm-kafka-topics-ui
+          helm repo add cloudhut https://raw.githubusercontent.com/cloudhut/charts/master/archives
+          helm repo update
+
+    - task: HelmDeploy@0
+      displayName: Install Kafka
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceConnection: ${{ parameters.K8sSvcConnection }}
+        namespace: ${{ parameters.Environment }}
+        command: 'upgrade'
+        chartType: 'Name'
+        chartName: 'bitnami/kafka'
+        valueFile: '$(kafkaValueFile)'
+        releaseName: 'kafka'
+        install: true
+        waitForExecution: true
+        arguments: '--set volumePermissions.enabled=true --set zookeeper.volumePermissions.enabled=true'
+
+    - task: HelmDeploy@0
+      displayName: Install Schema Registry
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceConnection: ${{ parameters.K8sSvcConnection }}
+        namespace: ${{ parameters.Environment }}
+        command: 'upgrade'
+        chartType: 'Name'
+        chartName: 'incubator/schema-registry'
+        valueFile: '$(schemaRegistryValueFile)'
+        releaseName: 'schemaregistry'
+        install: true
+        waitForExecution: true
+
+    - task: HelmDeploy@0
+      displayName: Install Schema Registry UI
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceConnection: ${{ parameters.K8sSvcConnection }}
+        namespace: ${{ parameters.Environment }}
+        command: 'upgrade'
+        chartType: 'Name'
+        chartName: 'stable/schema-registry-ui'
+        valueFile: './Infrastructure/Kubernetes/Kafka/schema-registry-ui.yaml'
+        releaseName: 'schemaregistry-ui'
+        install: true
+        waitForExecution: false
+
+    - task: HelmDeploy@0
+      displayName: Install Kafka Topics UI
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceConnection: ${{ parameters.K8sSvcConnection }}
+        namespace: ${{ parameters.Environment }}
+        command: 'upgrade'
+        chartType: 'Name'
+        chartName: 'kafka-topics-ui/kafka-topics-ui'
+        valueFile: './Infrastructure/Kubernetes/Kafka/kafka-topics-ui.yaml'
+        releaseName: 'kafka-topics-ui'
+        install: true
+        waitForExecution: false
+
+    # - task: HelmDeploy@0
+    #   displayName: Install Kafka WebUI (Kowl)
+    #   inputs:
+    #     connectionType: 'Kubernetes Service Connection'
+    #     kubernetesServiceConnection: '${{ parameters.KubernetesServiceEndpoint }}'
+    #     namespace: ${{ parameters.Namespace }}
+    #     command: 'upgrade'
+    #     chartType: 'Name'
+    #     chartName: 'cloudhut/kowl'
+    #     releaseName: 'kowl'
+    #     valueFile: '$(kowlValueFile)'
+    #     install: true
+    #     waitForExecution: false

@@ -1,0 +1,105 @@
+parameters:
+# Connection params
+- name: ContainerRegistryServer
+  type: string
+  default: kanyafields
+#- name: AzureSubscription
+#  type: string
+#  default: kanyafields-arm-ci
+
+# Project params
+- name: ProjectName
+  type: string
+- name: Image
+  type: string
+- name: Environment
+  type: string
+  default: dev
+- name: OverlayFolderName
+  type: string
+  default: ""
+- name: DependsOn
+  type: string
+  default: ""
+
+stages:
+- stage: BakeManifest_${{ replace(replace(parameters.ProjectName, '.', '_'), '-', '_') }}
+  #dependsOn: ${{parameters.DependsOn}}
+  displayName: Bake Manifest ${{ parameters.ProjectName }}
+  pool: ChronosPool
+  variables:
+    environmentName: ${{ parameters.Environment }}
+    overlayFolder: ${{ coalesce(parameters.OverlayFolderName, parameters.Environment) }}
+    workingDir: Infrastructure/Kubernetes/Microservices/${{ parameters.ProjectName }}/
+  jobs:
+  - job: BakeManifest
+    displayName: Bake Manifest
+    steps:
+    - task: printAllVariables@1
+      displayName: Print all variables
+
+    - task: KubectlInstaller@0
+      displayName: Install Kubectl
+      inputs:
+        kubectlVersion: 'latest'
+
+    - task: PowerShell@2
+      displayName: Set ${{parameters.ProjectName}} container image environment variables
+      inputs:
+        targetType: 'inline'
+        script: |
+          $imageWithTag = "${{parameters.Image}}"
+          $imageArray = $imageWithTag.Split(":")
+          $repository = $imageArray[0]
+          Write-Host "##vso[task.setvariable variable=${{parameters.ProjectName}}.image]$imageWithTag"
+          Write-Host "##vso[task.setvariable variable=CONTAINER_REGISTRY_SERVER]${{parameters.ContainerRegistryServer}}"
+
+    - task: CmdLine@2
+      displayName: Push environment variables to the ${{parameters.ProjectName}} deployment
+      inputs:
+        script: |
+          envsubst < base/deployment.yaml > temp.yaml
+          cat temp.yaml > base/deployment.yaml
+        workingDirectory: $(workingDir)
+        failOnStderr: true
+
+    # it is usefull if I need something special for definite environment, for example some add special variables to the deployment manifest for the dev env
+    - task: CmdLine@2
+      displayName: Run kubectl kustomize
+      inputs:
+        script: |
+          kubectl kustomize $(workingDir)/overlays/$(overlayFolder) > $(workingDir)/deploy_${{parameters.ProjectName}}_$(environmentName).yaml
+
+    - task: PublishPipelineArtifact@0
+      displayName: Publish manifests
+      inputs:
+        artifactName: manifests_${{parameters.ProjectName}}
+        targetPath: '$(workingDir)/deploy_${{parameters.ProjectName}}_$(environmentName).yaml'
+    
+- stage: Deploy_${{ replace(replace(parameters.ProjectName, '.', '_'), '-', '_') }}
+  displayName: Deploy ${{parameters.ProjectName}} to Kubernetes
+  pool:
+    name: ChronosPool
+  variables:
+    environmentName: ${{ parameters.Environment }}
+  jobs:
+  - deployment: Deploy
+    displayName: Deploy to Kubernetes
+    environment: '${{ parameters.Environment }}.${{ parameters.Environment }}'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@1
+            displayName: Download Manifests
+            inputs:
+              buildType: current
+              artifactName: manifests_${{parameters.ProjectName}}
+              targetPath: '$(System.ArtifactsDirectory)/Manifests/deploy_${{parameters.ProjectName}}_$(environmentName).yaml'
+          - task: Kubernetes@1
+            displayName: Deploy to Kubernetes
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              command: 'apply'
+              arguments: ' -f $(System.ArtifactsDirectory)/Manifests/deploy_${{parameters.ProjectName}}_$(environmentName).yaml'
+              namespace: '$(environmentName)'

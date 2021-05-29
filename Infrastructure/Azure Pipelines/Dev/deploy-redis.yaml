@@ -1,0 +1,15 @@
+trigger: none
+
+parameters:
+- name: Environment
+  type: string
+  default: dev
+  values:
+  - dev
+  - prod
+
+
+extends:
+  template: /Infrastructure/Azure Pipelines/Templates/deploy-redis.yaml
+  parameters:
+    Environment: ${{ parameters.Environment }}

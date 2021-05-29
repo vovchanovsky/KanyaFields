@@ -1,0 +1,87 @@
+trigger: none
+
+parameters:
+- name: K8sSvcConnection
+  type: string
+  default: K8s-dev
+  values:
+  - "K8s-dev"
+  - "K8s-prod"
+
+pool: ChronosPool
+
+variables:
+  kubernetesServiceEndpoint: "${{ parameters.K8sSvcConnection }}"
+  namespace: logging
+  helmVersion: 3.5.4
+  elasticsearchVersion: 7.12.0
+  kibanaVersion: 7.12.0
+  filebeatVersion: 7.12.0
+
+stages:
+- stage: ELK
+  displayName: Install ELK stack
+  jobs:  
+  - job: 
+    displayName: Install ELK stack
+    steps:
+    - task: HelmInstaller@0
+      inputs:
+        helmVersion: '$(helmVersion)'
+        checkLatestHelmVersion: false
+        installKubectl: true
+
+    - task: Bash@3
+      inputs:
+        targetType: 'inline'
+        script: |
+            helm repo add elastic https://helm.elastic.co
+            helm repo update
+
+    - task: HelmDeploy@0
+      displayName: Install Elasticsearch
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceConnection: '$(kubernetesServiceEndpoint)'
+        namespace: $(namespace)
+        command: 'upgrade'
+        chartType: 'Name'
+        chartName: 'elastic/elasticsearch'
+        chartVersion: $(elasticsearchVersion)
+        valueFile: './Infrastructure/Kubernetes/ELK/elastic/values.yaml'
+        releaseName: 'elasticsearch-dev'
+        install: true
+        failOnStderr: false
+        waitForExecution: true
+
+    - task: HelmDeploy@0
+      displayName: Install Kibana
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceConnection: '$(kubernetesServiceEndpoint)'
+        namespace: $(namespace)
+        command: 'upgrade'
+        chartType: 'Name'
+        chartName: 'elastic/kibana'
+        chartVersion: $(kibanaVersion)
+        valueFile: './Infrastructure/Kubernetes/ELK/kibana/values.yaml'
+        releaseName: 'kibana-dev'
+        install: true
+        failOnStderr: false
+        waitForExecution: true
+
+    - task: HelmDeploy@0
+      displayName: Install Filebeat
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceConnection: '$(kubernetesServiceEndpoint)'
+        namespace: $(namespace)
+        command: 'upgrade'
+        chartType: 'Name'
+        chartName: 'elastic/filebeat'
+        chartVersion: $(filebeatVersion)
+        valueFile: './Infrastructure/Kubernetes/ELK/filebeat/values.yaml'
+        releaseName: 'filebeat-dev'
+        install: true
+        failOnStderr: false
+        waitForExecution: true

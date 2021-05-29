@@ -1,0 +1,141 @@
+parameters:
+# Connection params
+- name: ContainerRegistryServer
+  type: string
+  default: Kanya Fields Docker Hub
+
+# Project params
+- name: ProjectFolder
+  type: string
+- name: ImageName
+  type: string
+- name: ServiceFolder
+  type: string
+
+
+variables:
+  containerRegistry: ${{ parameters.ContainerRegistryServer }}
+  projectFolder: ${{ parameters.ProjectFolder }}
+  imageName: ${{ parameters.ImageName }}
+  serviceFolder: ${{ parameters.ServiceFolder }}
+
+  buildConfiguration: Release
+  containerRepositoryHubuser: kanyafields
+  imageTag: $(Build.BuildNumber)
+
+stages:
+- stage: Build
+  displayName: Build binaries and run tests
+  pool: ChronosPool
+  jobs:
+  - job:
+    displayName: Build and run tests
+    steps:
+    - task: printAllVariables@1
+      displayName: Print all variables
+    
+    - task: UseDotNet@2
+      displayName: Use .NET 5
+      inputs:
+        packageType: 'sdk'
+        version: '5.0.x'
+
+    - task: DotNetCoreCLI@2
+      displayName: Build
+      inputs:
+        command: build
+        projects: '$(serviceFolder)/**/*.csproj'
+        arguments: '--configuration "$(buildConfiguration)" -o BuildResults'
+
+    - task: DotNetCoreCLI@2
+      displayName: Run tests
+      inputs:
+        command: test
+        projects: '$(serviceFolder)/**/*.csproj' ## тут может что-то пойти не так поскольку тут запрос на прогон всех тестов по всем проектам, даже те, которые не тестовые проекты
+        arguments: '--configuration "$(buildConfiguration)"'
+
+    - task: CopyFiles@2
+      displayName: Copy Build Results
+      inputs:
+        SourceFolder: BuildResults
+        Contents: '**'
+        TargetFolder: $(Build.ArtifactStagingDirectory)
+
+    - task: CopyFiles@2
+      displayName: Copy Dockerfile
+      inputs:
+        SourceFolder: $(projectFolder)
+        Contents: Dockerfile.release
+        TargetFolder: $(Build.ArtifactStagingDirectory)
+    
+    - task: PublishBuildArtifacts@1
+      displayName: Publish artifacts
+      inputs:
+        pathToPublish: $(Build.ArtifactStagingDirectory)
+        artifactName: BuildOutputs
+
+- stage: Docker
+  displayName: Build and publish Docker image
+  pool: ChronosPool
+  jobs:
+  - job: Docker
+    steps:
+    - checkout: none
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: current
+        downloadType: single
+        artifactName: BuildOutputs
+        downloadPath: $(System.ArtifactsDirectory)
+    
+    - task: DockerInstaller@0
+      displayName: Install Docker
+      inputs:
+        dockerVersion: '20.10.5'
+
+    - task: Docker@2
+      displayName: Build image
+      inputs:
+        containerRegistry: $(containerRegistry)
+        repository: $(containerRepositoryHubuser)/$(imageName)
+        dockerFile: $(System.ArtifactsDirectory)/BuildOutputs/Dockerfile.release
+        command: build
+        tags: |
+          latest
+          $(imageTag)
+
+    # - task: AzureKeyVault@1
+    #   displayName: Get Secret Values
+    #   inputs:
+    #     azureSubscription: $(armConnection)
+    #     KeyVaultName: $(keyVault)
+    #     SecretsFilter: 'VeracodeContainerScanToken'
+      
+    # - task: PowerShell@2
+    #   displayName: Set environment variables
+    #   inputs:
+    #     targetType: 'inline'
+    #     script: |
+    #       Write-Host "##vso[task.setvariable variable=SRCCLR_API_TOKEN]$(VeracodeContainerScanToken)"
+
+    # - task: Bash@3
+    #   displayName: Perform Veracode scan
+    #   inputs:
+    #     targetType: 'inline'
+    #     script: |
+
+    - task: Docker@2
+      displayName: Login to Docker Hub
+      inputs:
+        containerRegistry: $(containerRegistry)
+        command: login
+
+    - task: Docker@2
+      displayName: Push image
+      inputs:
+        containerRegistry: $(containerRegistry)
+        repository: $(containerRepositoryHubuser)/$(imageName)
+        command: push
+        tags: |
+          latest
+          $(imageTag)

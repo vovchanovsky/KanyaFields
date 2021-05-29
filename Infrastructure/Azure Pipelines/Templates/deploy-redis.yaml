@@ -1,0 +1,58 @@
+trigger: none
+
+parameters:
+- name: Environment
+  type: string
+  default: dev
+  values:
+  - dev
+  - prod
+- name: K8sSvcConnection
+  type: string
+  default: K8s-dev
+  values:
+  - "K8s-dev"
+  - "K8s-prod"
+
+
+stages:
+- stage: Deploy_Redis
+  displayName: Deploy Redis
+  pool: ChronosPool
+  jobs:
+  - job: DeployRedis
+    displayName: Deploy Redis
+    variables:
+      ${{ if eq(parameters.Environment, 'dev')}}:
+        redisValueFile: ./Infrastructure/Kubernetes/Redis/values.yaml
+      ${{ if eq(parameters.Environment, 'prod')}}:
+        redisValueFile: 'TODO'
+
+    steps:
+    - task: HelmInstaller@0
+      displayName: Install Helm
+      inputs:
+        helmVersion: '3.5.4'
+        installKubectl: true
+
+    - task: Bash@3
+      displayName: Update Helm repos
+      inputs:
+        targetType: 'inline'
+        script: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+
+    - task: HelmDeploy@0
+      displayName: Install Redis
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceConnection: ${{ parameters.K8sSvcConnection }}
+        namespace: ${{ parameters.Environment }}
+        command: 'upgrade'
+        chartType: 'Name'
+        chartName: 'bitnami/redis'
+        valueFile: '$(redisValueFile)'
+        releaseName: 'redis'
+        install: true
+        waitForExecution: true

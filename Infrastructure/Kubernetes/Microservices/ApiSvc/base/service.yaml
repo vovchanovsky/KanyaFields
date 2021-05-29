@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kf-apisvc-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: apisvc
+  ports:
+  - port: 1488
+    targetPort: 80

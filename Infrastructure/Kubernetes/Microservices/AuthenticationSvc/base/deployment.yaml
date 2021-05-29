@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kf-authenticationsvc-deployment
+spec:
+  selector:
+    matchLabels:
+      app: authenticationsvc
+  template:
+    metadata:
+      name: authenticationsvc
+      labels:
+        app: authenticationsvc
+    spec:
+      containers:
+      - image: ${CONTAINER_REGISTRY_SERVER}/${AUTHENTICATIONSVC_IMAGE}
+        name: authenticationsvc-container
+        imagePullPolicy: Always
+        env:
+        - name: CONSUMER_GROUP_ID
+          value: AuthenticationSvcGroup

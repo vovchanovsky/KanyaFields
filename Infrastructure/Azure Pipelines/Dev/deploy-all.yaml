@@ -1,0 +1,47 @@
+trigger: none
+pool: ChronosPool
+
+parameters:
+- name: Environment
+  type: string
+  default: dev
+  values:
+  - dev
+  - prod
+- name: ContainerRegistryServer
+  type: string
+  default: kanyafields
+
+- name: ApiSvcImageName
+  type: string
+  default: kf.apisvc
+- name: ApiSvcImageVersion
+  type: string
+  default: latest
+
+
+variables:
+  apiSvcImageName: '${{parameters.ApiSvcImageName}}:${{parameters.ApiSvcImageVersion}}'
+  kubernetesServiceConnection: ${{parameters.KubernetesServiceConnection}}
+  containerRegistryServer: ${{parameters.ContainerRegistryServer}}
+  environment: Dev # hardcode because it is DEV pipeline
+
+stages:
+# Deploy secrets
+# Deploy certs
+# Deploy Kafka
+
+  - template: /Infrastructure/Azure Pipelines/Templates/deploy-kafka.yaml
+    parameters:
+      Environment: $(environment)
+
+# Deploy jobs
+# Deploy configmaps
+
+  - template: /Infrastructure/Azure Pipelines/Templates/deploy-image.yaml
+    parameters:
+      ContainerRegistryServer: $(containerRegistryServer)
+      ProjectName: ApiSvc
+      Image: $(apiSvcImageName)
+      Environment: $(environment)
+# Deploy Ingress

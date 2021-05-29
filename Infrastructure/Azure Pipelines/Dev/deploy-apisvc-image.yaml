@@ -1,0 +1,31 @@
+trigger: none
+
+parameters:
+- name: ImageName
+  type: string
+  default: kf.apisvc
+- name: ImageVersion
+  type: string
+  default: latest
+- name: ContainerRegistryServer
+  type: string
+  default: kanyafields
+- name: Environment
+  type: string
+  default: dev
+  values:
+  - dev
+  - prod
+
+variables:
+  imageName: '${{parameters.ImageName}}:${{parameters.ImageVersion}}'
+  containerRegistryServer: ${{parameters.ContainerRegistryServer}}
+  environment: ${{parameters.Environment}}
+
+stages:
+  - template: /Infrastructure/Azure Pipelines/Templates/deploy-image.yaml
+    parameters:
+      ContainerRegistryServer: $(containerRegistryServer)
+      ProjectName: ApiSvc
+      Image: $(imageName)
+      Environment: $(environment)

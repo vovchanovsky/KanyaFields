@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AuthenticationSvc.Domain\AuthenticationSvc.Domain.csproj" />
+    <ProjectReference Include="..\AuthenticationSvc.InfrastructureInterfaces\AuthenticationSvc.InfrastructureInterfaces.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Common\Exceptions\" />
+    <Folder Include="Common\Interfaces\" />
+    <Folder Include="Models\Messages\Extensions\" />
+    <Folder Include="User\Commands\RegisterUser\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="10.2.0" />
+    <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="5.0.0" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="6.11.1" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.11.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Resources\ErrorMessages.Designer.cs">
+      <DependentUpon>ErrorMessages.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+    </Compile>
+    <Compile Update="Resources\InfoMessages.Designer.cs">
+      <DependentUpon>InfoMessages.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\ErrorMessages.resx">
+      <SubType>Designer</SubType>
+      <LastGenOutput>ErrorMessages.Designer.cs</LastGenOutput>
+      <Generator>ResXFileCodeGenerator</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Resources\InfoMessages.resx">
+      <SubType>Designer</SubType>
+      <LastGenOutput>InfoMessages.Designer.cs</LastGenOutput>
+      <Generator>ResXFileCodeGenerator</Generator>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

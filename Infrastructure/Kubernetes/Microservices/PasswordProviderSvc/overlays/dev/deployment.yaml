@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kf-passwordprovidersvc-deployment
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+      - name: passwordprovidersvc-container
+        env:
+        - name: KAFKA_SERVICE_HOST
+          value: kafka.dev.svc.cluster.local
+        - name: KAFKA_SERVICE_PORT
+          value: "9092"
+        - name: SR_SCHEMA_REGISTRY_SERVICE_HOST
+          value: schemaregistry-schema-registry
+        - name: SR_SCHEMA_REGISTRY_SERVICE_PORT
+          value: "8081"
+        - name: CASSANDRA_HOST
+          value: cassandra.dev.svc.cluster.local
+        - name: CASSANDRA_USER
+          value: cassandra
+        - name: CASSANDRA_PASSWORD
+          value: cassandra       

@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kf-authenticationsvc-deployment
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+      - name: authenticationsvc-container
+        env:
+        - name: KAFKA_SERVICE_HOST
+          value: kafka.dev.svc.cluster.local
+        - name: KAFKA_SERVICE_PORT
+          value: "9092"
+        - name: SR_SCHEMA_REGISTRY_SERVICE_HOST
+          value: schemaregistry-schema-registry
+        - name: SR_SCHEMA_REGISTRY_SERVICE_PORT
+          value: "8081"
+        - name: CASSANDRA_HOST
+          value: cassandra.dev.svc.cluster.local
+        - name: CASSANDRA_USER
+          value: cassandra
+        - name: CASSANDRA_PASSWORD
+          value: cassandra
+        - name: JWT_TOKEN_ISSUER
+          value: KanyaFieldsIdentityProvider
+        - name: JWT_TOKEN_AUDIENCE
+          value: KanyaFieldsUsers
+        - name: JWT_TOKEN_IDENTITY_PROVIDER_PUBLIC_KEY
+          value: OMG_THIS_SECRET_IS_SOOOOO_LONG___WELL_NOT_SO_LONG_INDEED
+   

@@ -1,0 +1,92 @@
+parameters:
+- name: ProjectFolder
+  type: string
+  default: Solution/ApiSvc/ApiSvc
+- name: ServiceFolder
+  type: string
+  default: Solution/ApiSvc
+- name: UnitTestsPath
+  type: string
+  default: ApiSvc.*UnitTests/ApiSvc.*.csproj
+- name: IntegrationTestsPath
+  type: string
+  default: ApiSvc.*IntegrationTests/ApiSvc.*.csproj
+
+
+stages:
+- stage: Verify
+  displayName: Verify PR
+  pool: ChronosPool
+  variables:
+    buildConfiguration: release
+    serviceFolder: ${{ parameters.ServiceFolder }}
+    projectFolder: ${{ parameters.ProjectFolder }}
+    unitTestsPath: ${{ parameters.UnitTestsPath }}
+    integrationTestsPath: ${{ parameters.IntegrationTestsPath }}
+
+  jobs:
+  - job: Verify
+    displayName: Build and run tests
+    steps:
+    - task: printAllVariables@1
+      displayName: Print all variables
+
+    - task: UseDotNet@2
+      displayName: Use .NET 5
+      inputs:
+        packageType: 'sdk'
+        version: '5.0.x'
+
+    - task: DotNetCoreCLI@2
+      displayName: Build
+      inputs:
+        command: build
+        projects: '$(serviceFolder)/**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-incremental /flp:v=q /flp:logfile=Build.log'
+
+    - task: DotNetCoreCLI@2
+      displayName: Run unit tests
+      inputs:
+        command: test
+        projects: '$(serviceFolder)/$(unitTestsPath)'
+        arguments: --configuration $(buildConfiguration)
+          /p:CollectCoverage=true
+          /p:CoverletOutput="../"
+          /p:MergeWith="../coverage.json"
+          /p:CoverletOutputFormat="cobertura%2cjson"
+          /p:ThresholdType="Line%2cBranch"
+          /p:Threshold=80
+
+    - task: DotNetCoreCLI@2
+      displayName: Run integration tests ## нет интеграционных тестов потому что-то может пойти не так
+      inputs:
+        command: test
+        projects: '$(serviceFolder)/$(integrationTestsPath)'
+
+    - task: DotNetCoreCLI@2
+      displayName: Install ReportGenerator tool
+      inputs:
+        command: custom
+        custom: tool
+        arguments: install --tool-path . dotnet-reportgenerator-globaltool
+
+    - task: reportgenerator@4
+      displayName: Generate reports
+      inputs:
+        reports: $(Build.SourcesDirectory)/$(serviceFolder)/**/*.xml
+        targetdir: $(Build.SourcesDirectory)/coverlet/reports
+
+    - task: PublishCodeCoverageResults@1
+      displayName: Generate reports
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: $(Build.SourcesDirectory)/coverlet/reports/Cobertura.xml
+
+    - task: PowerShell@2
+      displayName: Display build status
+      inputs:
+        targetType: 'inline'
+        script: |
+          $output = Get-Content -Path "$(System.DefaultWorkingDirectory)/Build.log";
+          $warnings = $output | Select-String -Pattern ".*:\s";
+          if($warnings.Count -gt 0) { Write-Host "##vso[task.complete result=SucceededWithIssues;]There are build warnings"; }

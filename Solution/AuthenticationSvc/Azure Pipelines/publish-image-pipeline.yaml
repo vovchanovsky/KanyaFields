@@ -1,0 +1,20 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - Solution/AuthenticationSvc/*
+
+parameters:
+- name: ContainerRegistryServer
+  type: string
+  default: Kanya Fields Docker Hub
+
+extends:
+  template: Templates/publish-image-pipeline-template.yaml
+  parameters:
+    ContainerRegistryServer: ${{ parameters.ContainerRegistryServer }}
+    ProjectFolder: Solution/AuthenticationSvc/AuthenticationSvc
+    ImageName: kf.authenticationsvc
+    ServiceFolder: Solution/AuthenticationSvc

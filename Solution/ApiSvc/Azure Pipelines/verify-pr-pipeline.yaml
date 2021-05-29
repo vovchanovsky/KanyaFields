@@ -1,0 +1,10 @@
+trigger:
+  none
+
+extends:
+  template: Templates/verify-pr-pipeline-template.yaml
+  parameters:
+    ProjectFolder: Solution/ApiSvc/ApiSvc
+    ServiceFolder: Solution/ApiSvc
+    UnitTestsPath: ApiSvc.*UnitTests/ApiSvc.*.csproj
+    IntegrationTestsPath: ApiSvc.*IntegrationTests/ApiSvc.*.csproj

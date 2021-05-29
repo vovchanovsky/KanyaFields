@@ -1,0 +1,59 @@
+trigger: none
+
+parameters:
+- name: Environment
+  type: string
+  default: dev
+  values:
+  - dev
+  - prod
+- name: K8sSvcConnection
+  type: string
+  default: K8s-dev
+  values:
+  - "K8s-dev"
+  - "K8s-prod"
+
+
+stages:
+- stage: Deploy_Cassandra
+  displayName: Deploy Cassandra
+  pool: ChronosPool
+  jobs:
+  - job: DeployCassandra
+    displayName: Deploy Cassandra
+    variables:
+      ${{ if eq(parameters.Environment, 'dev')}}:
+        cassandraValueFile: ./Infrastructure/Kubernetes/Cassandra/values.yaml
+      ${{ if eq(parameters.Environment, 'prod')}}:
+        cassandraValueFile: 'TODO'
+
+    steps:
+    - task: HelmInstaller@0
+      displayName: Install Helm
+      inputs:
+        helmVersion: '3.5.4'
+        installKubectl: true
+
+    - task: Bash@3
+      displayName: Update Helm repos
+      inputs:
+        targetType: 'inline'
+        script: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+
+    - task: HelmDeploy@0
+      displayName: Install Cassandra
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceConnection: ${{ parameters.K8sSvcConnection }}
+        namespace: ${{ parameters.Environment }}
+        command: 'upgrade'
+        chartType: 'Name'
+        chartName: 'bitnami/cassandra'
+        valueFile: '$(cassandraValueFile)'
+        releaseName: 'cassandra'
+        install: true
+        waitForExecution: true
+        arguments: '--set dbUser.user=cassandra --set dbUser.password=cassandra'
